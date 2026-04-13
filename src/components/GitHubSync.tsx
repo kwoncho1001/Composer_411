@@ -39,6 +39,8 @@ export const GitHubSync = ({ onClose, projectId, onSyncComplete, activeLens, set
         const localProject = localProjects.find(p => p.id === projectId);
         if (localProject && localProject.repoUrl) {
           setRepoUrl(localProject.repoUrl);
+        } else {
+          setRepoUrl('');
         }
       } catch (error) {
         console.error("Error fetching local project", error);
