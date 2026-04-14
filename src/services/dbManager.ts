@@ -80,7 +80,14 @@ export const saveProject = async (project: any) => {
 
 export const deleteProject = async (id: string) => {
   const db = await initDB();
+  // Delete project
   await db.delete(STORE_PROJECTS, id);
+  // Delete associated notes
+  const notes = await getNotesByProject(id);
+  const noteIds = notes.map(n => n.id);
+  if (noteIds.length > 0) {
+    await bulkDeleteNotes(noteIds);
+  }
 };
 
 export const getProject = async (id: string): Promise<any | null> => {

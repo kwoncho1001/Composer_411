@@ -492,13 +492,9 @@ Summary: ${note.summary}
   if (note.noteType === 'Domain') {
     prompt += `Pain Point: ${note.painPoint}\nTarget Audience: ${note.targetAudience}\nSolution Promise: ${note.solutionPromise}\nBoundaries: ${note.boundaries}\nKPIs: ${note.kpis}\nGlossary: ${note.glossary}`;
     prompt += `\n\n[Domain 작성 지침]
-1. summary: 도메인의 정체성을 한 문장으로 정의 (예: "무엇을 하는 도메인인가?")
-2. painPoint: 이 도메인 영역에서 사용자가 겪는 구체적인 고통
-3. targetAudience: 이 도메인의 기능을 통해 혜택을 받는 핵심 타겟
-4. solutionPromise: 이 도메인이 제공하는 마법 같은 해결책과 가치
-5. boundaries: 담당하는 핵심 데이터와 프로세스, 타 도메인과의 접점, Out of Scope 명시
-6. kpis: 비즈니스 지표(예: 전환율) 또는 시스템 지표(예: 응답 속도, 데이터 정확도)
-7. glossary: 도메인 특화 용어, 상태값의 의미, 비즈니스 개념 정의`;
+1. summary: 도메인의 정체성을 한 문장으로 정의
+2. painPoint, targetAudience, solutionPromise: **리스트(- )를 사용하지 말고**, 핵심을 관통하는 **단 하나의 간결한 문장**으로만 작성하세요.
+3. boundaries, kpis, glossary: 리스트(- ) 형식을 사용하고 항목 사이에 빈 줄을 넣으세요.`;
     properties = { 
       ...properties, 
       painPoint: { type: Type.STRING }, 
@@ -513,10 +509,8 @@ Summary: ${note.summary}
     prompt += `Pain Point: ${note.painPoint}\nTarget Audience: ${note.targetAudience}\nSolution Promise: ${note.solutionPromise}\nRequirements: ${note.requirements}\nUser Journey: ${note.userJourney}\nIA: ${note.ia}`;
     prompt += `\n\n[Module 작성 지침]
 1. summary: 모듈의 핵심 역할을 한 문장으로 정의
-2. painPoint, targetAudience, solutionPromise: 가치 제안 (Strategic Pillars)
-3. requirements: 사용자 목표를 달성하기 위해 시스템이 반드시 갖춰야 할 기능적 조건
-4. userJourney: 사용자가 기능을 사용하는 시나리오와 단계별 흐름
-5. ia: 이 모듈에서 다루는 주요 데이터 객체와 그들 간의 관계 (Information Architecture)`;
+2. painPoint, targetAudience, solutionPromise: **리스트(- )를 사용하지 말고**, 핵심을 관통하는 **단 하나의 간결한 문장**으로만 작성하세요.
+3. requirements, userJourney, ia: 리스트(- ) 형식을 사용하고 항목 사이에 빈 줄을 넣으세요.`;
     properties = { 
       ...properties, 
       painPoint: { type: Type.STRING }, 
@@ -528,9 +522,22 @@ Summary: ${note.summary}
     };
     required = [...required, "painPoint", "targetAudience", "solutionPromise", "requirements", "userJourney", "ia"];
   } else if (note.noteType === 'Logic') {
-    prompt += `Business Rules: ${note.businessRules}\nConstraints: ${note.constraints}\nIO Mapping: ${note.ioMapping}\nEdge Cases: ${note.edgeCases}`;
-    properties = { ...properties, businessRules: { type: Type.STRING }, constraints: { type: Type.STRING }, ioMapping: { type: Type.STRING }, edgeCases: { type: Type.STRING } };
-    required = [...required, "businessRules", "constraints", "ioMapping", "edgeCases"];
+    prompt += `Pain Point: ${note.painPoint}\nTarget Audience: ${note.targetAudience}\nSolution Promise: ${note.solutionPromise}\nBusiness Rules: ${note.businessRules}\nConstraints: ${note.constraints}\nIO Mapping: ${note.ioMapping}\nEdge Cases: ${note.edgeCases}`;
+    prompt += `\n\n[Logic 작성 지침]
+1. summary: 로직의 목적을 한 문장으로 정의
+2. painPoint, targetAudience, solutionPromise: **리스트(- )를 사용하지 말고**, 핵심을 관통하는 **단 하나의 간결한 문장**으로만 작성하세요.
+3. businessRules, constraints, ioMapping, edgeCases: 리스트(- ) 형식을 사용하고 항목 사이에 빈 줄을 넣으세요.`;
+    properties = { 
+      ...properties, 
+      painPoint: { type: Type.STRING }, 
+      targetAudience: { type: Type.STRING }, 
+      solutionPromise: { type: Type.STRING }, 
+      businessRules: { type: Type.STRING }, 
+      constraints: { type: Type.STRING }, 
+      ioMapping: { type: Type.STRING }, 
+      edgeCases: { type: Type.STRING } 
+    };
+    required = [...required, "painPoint", "targetAudience", "solutionPromise", "businessRules", "constraints", "ioMapping", "edgeCases"];
   } else if (note.noteType === 'Snapshot') {
     prompt += `Technical Role: ${note.technicalRole}\nImplementation: ${note.implementation}\nDependencies: ${note.dependencies}\nExecution Flow: ${note.executionFlow}`;
     properties = { ...properties, technicalRole: { type: Type.STRING }, implementation: { type: Type.STRING }, dependencies: { type: Type.STRING }, executionFlow: { type: Type.STRING } };
@@ -1282,12 +1289,12 @@ export const generateDetailedNodeContent = async (nodeType: string, title: strin
 1. 초등학생도 이해할 수 있을 정도로 쉬운 비유와 일상 언어를 사용하세요.
 2. 기술적인 구현 방법(코드, DB 구조 등)보다는 '이 기능이 사용자에게 어떤 경험을 주는지'와 '어떤 규칙으로 움직이는지'를 중심으로 설명하세요.
 3. '모듈', '컴포넌트', '엔드포인트', '인스턴스' 같은 단어는 절대 사용하지 마세요.
-4. 마크다운 형식을 사용하여 읽기 좋게 구성하세요.
+4. 마크다운 형식을 사용하여 읽기 좋게 구성하세요. 가독성을 위해 각 항목은 마크다운 리스트(- )를 사용하고, 문단 사이에 반드시 빈 줄(\\n\\n)을 넣어주세요.
 5. 다른 기능들과 역할이 겹치지 않도록 이 기능만의 고유한 역할을 설명하세요.
 `;
 
   const responsePromise = ai.models.generateContent({
-    model: MODEL,
+    model: PRO_MODEL,
     contents: prompt,
   });
 
@@ -1314,13 +1321,15 @@ export const generateDetailedBusinessDetails = async (nodeType: string, title: s
 
 [작성 지침]
 1. 비전공자 창업자도 이해할 수 있는 비즈니스 언어를 사용하세요.
-2. 다음 6가지 항목을 반드시 포함하여 JSON으로 응답하세요:
-   - painPoint (사용자 고통): 이 영역에서 사용자가 겪는 구체적인 고통.
-   - targetAudience (타겟 고객): 이 영역의 기능을 통해 혜택을 받는 핵심 타겟.
-   - solutionPromise (해결 가설): 이 영역이 제공하는 마법 같은 해결책과 가치.
-   - boundaries (책임 범위): 담당하는 핵심 데이터와 프로세스, 그리고 하지 않는 일(Out of Scope) 명시.
-   - kpis (성공 지표): 이 영역이 제 역할을 하고 있는지 판단하는 객관적 기준.
-   - glossary (핵심 용어집): 도메인 내 소통의 오해를 없애기 위한 핵심 용어 및 비즈니스 개념 정의.
+2. 가독성을 위해 boundaries, kpis, glossary 필드의 내용은 마크다운 리스트(- )를 적극 활용하고, 문단 사이에 반드시 빈 줄(\\n\\n)을 넣어주세요.
+3. **중요: painPoint, targetAudience, solutionPromise 필드는 리스트(- )를 사용하지 마세요.** 반드시 핵심을 관통하는 **단 하나의 명확하고 간결한 문장**으로만 작성하세요.
+4. 다음 6가지 항목을 반드시 포함하여 JSON으로 응답하세요:
+   - painPoint (사용자 고통): 이 영역에서 사용자가 겪는 구체적인 고통 (단일 문장).
+   - targetAudience (타겟 고객): 이 영역의 기능을 통해 혜택을 받는 핵심 타겟 (단일 문장).
+   - solutionPromise (해결 가설): 이 영역이 제공하는 마법 같은 해결책과 가치 (단일 문장).
+   - boundaries (책임 범위): 담당하는 핵심 데이터와 프로세스, 그리고 하지 않는 일(Out of Scope) 명시 (리스트 형식).
+   - kpis (성공 지표): 이 영역이 제 역할을 하고 있는지 판단하는 객관적 기준 (리스트 형식).
+   - glossary (핵심 용어집): 도메인 내 소통의 오해를 없애기 위한 핵심 용어 및 비즈니스 개념 정의 (리스트 형식).
 `;
     properties = {
       painPoint: { type: Type.STRING },
@@ -1341,13 +1350,15 @@ export const generateDetailedBusinessDetails = async (nodeType: string, title: s
 
 [작성 지침]
 1. 사용자 경험(UX) 관점에서 작성하세요.
-2. 다음 6가지 항목을 반드시 포함하여 JSON으로 응답하세요:
-   - painPoint (사용자 고통): 이 기능을 통해 해결하려는 사용자의 구체적인 불편함.
-   - targetAudience (타겟 사용자): 이 기능을 주로 사용하게 될 핵심 사용자 층.
-   - solutionPromise (해결책의 약속): 이 기능이 사용자에게 주는 핵심 가치와 마법 같은 해결책.
-   - requirements (기능적 요구사항): 반드시 수행해야 하는 기능 리스트.
-   - userJourney (사용자 여정): 사용자가 기능을 사용하는 시나리오와 단계별 흐름.
-   - ia (정보 구조): 이 기능에서 다루는 주요 데이터 객체들의 관계.
+2. 가독성을 위해 requirements, userJourney, ia 필드의 내용은 마크다운 리스트(- )를 적극 활용하고, 문단 사이에 반드시 빈 줄(\\n\\n)을 넣어주세요.
+3. **중요: painPoint, targetAudience, solutionPromise 필드는 리스트(- )를 사용하지 마세요.** 반드시 핵심을 관통하는 **단 하나의 명확하고 간결한 문장**으로만 작성하세요.
+4. 다음 6가지 항목을 반드시 포함하여 JSON으로 응답하세요:
+   - painPoint (사용자 고통): 이 기능을 통해 해결하려는 사용자의 구체적인 불편함 (단일 문장).
+   - targetAudience (타겟 사용자): 이 기능을 주로 사용하게 될 핵심 사용자 층 (단일 문장).
+   - solutionPromise (해결책의 약속): 이 기능이 사용자에게 주는 핵심 가치와 마법 같은 해결책 (단일 문장).
+   - requirements (기능적 요구사항): 반드시 수행해야 하는 기능 리스트 (리스트 형식).
+   - userJourney (사용자 여정): 사용자가 기능을 사용하는 시나리오와 단계별 흐름 (리스트 형식).
+   - ia (정보 구조): 이 기능에서 다루는 주요 데이터 객체들의 관계 (리스트 형식).
 `;
     properties = {
       painPoint: { type: Type.STRING },
@@ -1368,19 +1379,27 @@ export const generateDetailedBusinessDetails = async (nodeType: string, title: s
 
 [작성 지침]
 1. 논리적이고 구체적으로 작성하세요.
-2. 다음 4가지 항목을 반드시 포함하여 JSON으로 응답하세요:
-   - businessRules (의사결정 규칙): '만약 ~라면 ~한다' 식의 구체적인 판단 로직.
-   - constraints (제약 조건): 데이터의 유효성, 보안 규칙, 정책적 한계.
-   - ioMapping (데이터 입출력 매핑): 입력값이 어떤 과정을 거쳐 어떤 결과값으로 변하는지 정의.
-   - edgeCases (예외 처리): 비정상적인 상황이나 오류 발생 시의 대응 규칙.
+2. 가독성을 위해 businessRules, constraints, ioMapping, edgeCases 필드의 내용은 마크다운 리스트(- )를 적극 활용하고, 문단 사이에 반드시 빈 줄(\\n\\n)을 넣어주세요.
+3. **중요: painPoint, targetAudience, solutionPromise 필드는 리스트(- )를 사용하지 마세요.** 반드시 핵심을 관통하는 **단 하나의 명확하고 간결한 문장**으로만 작성하세요.
+4. 다음 7가지 항목을 반드시 포함하여 JSON으로 응답하세요:
+   - painPoint (해결하려는 문제점): 이 로직이 해결하는 구체적인 문제나 비효율 (단일 문장).
+   - targetAudience (핵심 타겟): 이 로직의 결과를 직접적으로 체감하는 대상 (단일 문장).
+   - solutionPromise (제공 가치): 이 로직이 정상 작동했을 때 얻는 핵심 가치 (단일 문장).
+   - businessRules (의사결정 규칙): '만약 ~라면 ~한다' 식의 구체적인 판단 로직 (리스트 형식).
+   - constraints (제약 조건): 데이터의 유효성, 보안 규칙, 정책적 한계 (리스트 형식).
+   - ioMapping (데이터 입출력 매핑): 입력값이 어떤 과정을 거쳐 어떤 결과값으로 변하는지 정의 (리스트 형식).
+   - edgeCases (예외 처리): 비정상적인 상황이나 오류 발생 시의 대응 규칙 (리스트 형식).
 `;
     properties = {
+      painPoint: { type: Type.STRING },
+      targetAudience: { type: Type.STRING },
+      solutionPromise: { type: Type.STRING },
       businessRules: { type: Type.STRING },
       constraints: { type: Type.STRING },
       ioMapping: { type: Type.STRING },
       edgeCases: { type: Type.STRING }
     };
-    required = ["businessRules", "constraints", "ioMapping", "edgeCases"];
+    required = ["painPoint", "targetAudience", "solutionPromise", "businessRules", "constraints", "ioMapping", "edgeCases"];
   }
 
   const responsePromise = ai.models.generateContent({
@@ -1404,70 +1423,77 @@ export const generateDetailedBusinessDetails = async (nodeType: string, title: s
   }
 };
 
-export const generateDetailedBlueprint = async (blueprint: any, onProgress?: (msg: string) => void) => {
-  const detailedDomains = [];
+import pLimit from 'p-limit';
 
-  for (const domain of blueprint.domains) {
-    if (onProgress) onProgress(`도메인 상세화 중: ${domain.title}`);
+// ... (existing code)
+
+export const generateDetailedBlueprint = async (blueprint: any, onProgress?: (msg: string) => void) => {
+  const limit = pLimit(5); // Limit concurrency to 5
+  let completedCount = 0;
+  const totalNodes = blueprint.domains.reduce((acc: number, d: any) => 
+    acc + 1 + (d.modules?.length || 0) + (d.modules?.reduce((mAcc: number, m: any) => mAcc + (m.logics?.length || 0), 0) || 0), 0);
+
+  const updateProgress = (nodeTitle: string) => {
+    completedCount++;
+    if (onProgress) onProgress(`상세화 진행 중: ${Math.round((completedCount / totalNodes) * 100)}% (${nodeTitle})`);
+  };
+
+  const detailedDomains = await Promise.all(blueprint.domains.map((domain: any) => limit(async () => {
     const domainSiblingContext = blueprint.domains.filter((d: any) => d.title !== domain.title).map((d: any) => `- ${d.title}: ${d.summary}`).join('\n');
     
     const [domainContent, domainDetails] = await Promise.all([
       generateDetailedNodeContent('Domain', domain.title, domain.summary, '전체 시스템 아키텍처', domainSiblingContext),
       generateDetailedBusinessDetails('Domain', domain.title, domain.summary, '전체 시스템 아키텍처', domainSiblingContext)
     ]);
+    updateProgress(domain.title);
 
-    const detailedModules = [];
-    if (domain.modules) {
-      if (onProgress) onProgress(`모듈 상세화 중 (${domain.modules.length}개 병렬 처리)...`);
-      const modulePromises = domain.modules.map(async (mod: any) => {
-        const modParentContext = `상위 도메인: ${domain.title} (${domain.summary})`;
-        const modSiblingContext = domain.modules.filter((m: any) => m.title !== mod.title).map((m: any) => `- ${m.title}: ${m.summary}`).join('\n');
+    const detailedModules = domain.modules ? await Promise.all(domain.modules.map((mod: any) => limit(async () => {
+      const modParentContext = `상위 도메인: ${domain.title} (${domain.summary})`;
+      const modSiblingContext = domain.modules.filter((m: any) => m.title !== mod.title).map((m: any) => `- ${m.title}: ${m.summary}`).join('\n');
+      
+      const [modContent, modDetails] = await Promise.all([
+        generateDetailedNodeContent('Module', mod.title, mod.summary, modParentContext, modSiblingContext),
+        generateDetailedBusinessDetails('Module', mod.title, mod.summary, modParentContext, modSiblingContext)
+      ]);
+      updateProgress(mod.title);
+
+      const detailedLogics = mod.logics ? await Promise.all(mod.logics.map((logic: any) => limit(async () => {
+        const logicParentContext = `상위 도메인: ${domain.title}\n상위 모듈: ${mod.title} (${mod.summary})`;
+        const logicSiblingContext = mod.logics.filter((l: any) => l.title !== logic.title).map((l: any) => `- ${l.title}: ${l.summary}`).join('\n');
         
-        const [modContent, modDetails] = await Promise.all([
-          generateDetailedNodeContent('Module', mod.title, mod.summary, modParentContext, modSiblingContext),
-          generateDetailedBusinessDetails('Module', mod.title, mod.summary, modParentContext, modSiblingContext)
+        const [logicContent, logicDetails] = await Promise.all([
+          generateDetailedNodeContent('Logic', logic.title, logic.summary, logicParentContext, logicSiblingContext),
+          generateDetailedBusinessDetails('Logic', logic.title, logic.summary, logicParentContext, logicSiblingContext)
         ]);
+        updateProgress(logic.title);
 
-        const detailedLogics = [];
-        if (mod.logics) {
-          const logicPromises = mod.logics.map(async (logic: any) => {
-            const logicParentContext = `상위 도메인: ${domain.title}\n상위 모듈: ${mod.title} (${mod.summary})`;
-            const logicSiblingContext = mod.logics.filter((l: any) => l.title !== logic.title).map((l: any) => `- ${l.title}: ${l.summary}`).join('\n');
-            
-            const [logicContent, logicDetails] = await Promise.all([
-              generateDetailedNodeContent('Logic', logic.title, logic.summary, logicParentContext, logicSiblingContext),
-              generateDetailedBusinessDetails('Logic', logic.title, logic.summary, logicParentContext, logicSiblingContext)
-            ]);
-
-            return { 
-              ...logic, 
-              content: logicContent,
-              businessRules: logicDetails.businessRules,
-              constraints: logicDetails.constraints,
-              ioMapping: logicDetails.ioMapping,
-              edgeCases: logicDetails.edgeCases
-            };
-          });
-          const resolvedLogics = await Promise.all(logicPromises);
-          detailedLogics.push(...resolvedLogics);
-        }
         return { 
-          ...mod, 
-          content: modContent, 
-          painPoint: modDetails.painPoint,
-          targetAudience: modDetails.targetAudience,
-          solutionPromise: modDetails.solutionPromise,
-          requirements: modDetails.requirements,
-          userJourney: modDetails.userJourney,
-          ia: modDetails.ia,
-          logics: detailedLogics 
+          ...logic, 
+          content: logicContent,
+          painPoint: logicDetails.painPoint,
+          targetAudience: logicDetails.targetAudience,
+          solutionPromise: logicDetails.solutionPromise,
+          businessRules: logicDetails.businessRules,
+          constraints: logicDetails.constraints,
+          ioMapping: logicDetails.ioMapping,
+          edgeCases: logicDetails.edgeCases
         };
-      });
+      }))) : [];
 
-      const resolvedModules = await Promise.all(modulePromises);
-      detailedModules.push(...resolvedModules);
-    }
-    detailedDomains.push({ 
+      return { 
+        ...mod, 
+        content: modContent, 
+        painPoint: modDetails.painPoint,
+        targetAudience: modDetails.targetAudience,
+        solutionPromise: modDetails.solutionPromise,
+        requirements: modDetails.requirements,
+        userJourney: modDetails.userJourney,
+        ia: modDetails.ia,
+        logics: detailedLogics 
+      };
+    }))) : [];
+
+    return { 
       ...domain, 
       content: domainContent, 
       vision: domainDetails.vision,
@@ -1476,8 +1502,8 @@ export const generateDetailedBlueprint = async (blueprint: any, onProgress?: (ms
       kpis: domainDetails.kpis,
       glossary: domainDetails.glossary,
       modules: detailedModules 
-    });
-  }
+    };
+  })));
 
   return { domains: detailedDomains };
 };
@@ -1538,7 +1564,7 @@ ${notes.map(n => `Type: ${n.noteType} | Priority: ${n.priority} | Title: ${n.tit
 };
 
 export const generateModuleFromCluster = async (logics: {title: string, summary: string, businessRules?: string, constraints?: string, ioMapping?: string, edgeCases?: string}[]) => {
-  const prompt = `당신은 세계 최고의 소프트웨어 아키텍트입니다.
+  const prompt = `당신은 세계 최고의 소프트웨어 아키텍트이자 비즈니스 전략가입니다.
 다음은 수학적 유사도를 기반으로 군집화된 로직(Logic)들의 목록입니다. 이 로직들을 포괄하는 하나의 모듈(Module)을 설계하세요.
 
 [포함된 로직 목록]
@@ -1546,8 +1572,11 @@ ${JSON.stringify(logics, null, 2)}
 
 [요구사항]
 1. 모듈의 이름(title)과 한 줄 요약(summary)을 **한국어**로 작성하세요.
-2. **중요**: 제목(title)은 개발자가 아닌 일반 사용자나 기획자도 한눈에 이해할 수 있을 만큼 **매우 직관적이고 쉬운 단어**를 사용하세요. (예: 'AuthModule' 대신 '사용자 인증 및 보안 관리')
-3. 하위 로직들의 정보를 종합하여 다음 4가지 항목을 마크다운 형식으로 작성하세요:
+2. **중요**: 제목(title)은 개발자가 아닌 일반 사용자나 기획자도 한눈에 이해할 수 있을 만큼 **매우 직관적이고 쉬운 단어**를 사용하세요.
+3. 하위 로직들의 정보를 종합하여 다음 7가지 항목을 작성하세요:
+   - painPoint (사용자 고통): 이 모듈이 해결하려는 핵심적인 사용자 불편함.
+   - targetAudience (타겟 사용자): 이 모듈의 주요 사용자 층.
+   - solutionPromise (해결 가설): 이 모듈이 제공하는 핵심 가치 제안.
    - uxGoals (사용자 목표): 사용자가 이 모듈을 통해 달성하고자 하는 핵심 목표.
    - requirements (기능적 요구사항): 모듈이 반드시 수행해야 하는 기능 리스트.
    - userJourney (사용자 여정): 사용자가 기능을 사용하는 시나리오나 단계.
@@ -1556,16 +1585,19 @@ ${JSON.stringify(logics, null, 2)}
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {
-  "title": "직관적인 한국어 모듈 이름",
-  "summary": "한국어 모듈 한 줄 요약",
-  "uxGoals": "마크다운 형식의 사용자 목표",
-  "requirements": "마크다운 형식의 기능적 요구사항",
-  "userJourney": "마크다운 형식의 사용자 여정",
-  "ia": "마크다운 형식의 정보 구조"
+  "title": "...",
+  "summary": "...",
+  "painPoint": "...",
+  "targetAudience": "...",
+  "solutionPromise": "...",
+  "uxGoals": "...",
+  "requirements": "...",
+  "userJourney": "...",
+  "ia": "..."
 }`;
 
   const responsePromise = ai.models.generateContent({
-    model: MODEL,
+    model: PRO_MODEL,
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -1574,12 +1606,15 @@ ${JSON.stringify(logics, null, 2)}
         properties: {
           title: { type: Type.STRING },
           summary: { type: Type.STRING },
+          painPoint: { type: Type.STRING },
+          targetAudience: { type: Type.STRING },
+          solutionPromise: { type: Type.STRING },
           uxGoals: { type: Type.STRING },
           requirements: { type: Type.STRING },
           userJourney: { type: Type.STRING },
           ia: { type: Type.STRING }
         },
-        required: ["title", "summary", "uxGoals", "requirements", "userJourney", "ia"]
+        required: ["title", "summary", "painPoint", "targetAudience", "solutionPromise", "uxGoals", "requirements", "userJourney", "ia"]
       }
     }
   });
@@ -1594,7 +1629,7 @@ ${JSON.stringify(logics, null, 2)}
 };
 
 export const generateDomainsFromModules = async (modules: {id: string, title: string, summary: string, uxGoals?: string, requirements?: string, userJourney?: string, ia?: string}[]) => {
-  const prompt = `당신은 세계 최고의 소프트웨어 아키텍트입니다.
+  const prompt = `당신은 세계 최고의 소프트웨어 아키텍트이자 비즈니스 전략가입니다.
 다음은 시스템을 구성하는 모듈(Module)들의 목록입니다. 이 모듈들을 분석하여 3~5개의 최상위 도메인(Domain)으로 분류하고 설계하세요.
 
 [모듈 목록]
@@ -1602,12 +1637,14 @@ ${JSON.stringify(modules, null, 2)}
 
 [요구사항]
 1. 각 도메인의 이름(title), 요약(summary)을 **한국어**로 작성하세요.
-2. **중요**: 도메인 제목(title)은 시스템의 거대한 뼈대를 나타내므로, 누구나 한눈에 시스템의 큰 구역을 파악할 수 있도록 **매우 직관적이고 명확한 한국어 단어**를 사용하세요. (예: 'CoreDomain' 대신 '핵심 서비스 엔진')
-3. 다음 4가지 항목을 마크다운 형식으로 작성하세요:
-   - vision (비즈니스 비전): 이 도메인이 해결하려는 궁극적인 문제와 가치.
+2. **중요**: 도메인 제목(title)은 시스템의 거대한 뼈대를 나타내므로 매우 직관적이고 명확한 한국어 단어를 사용하세요.
+3. 다음 6가지 항목을 마크다운 형식으로 작성하세요:
+   - painPoint (사용자 고통): 이 도메인이 해결하려는 핵심적인 사용자 불편함.
+   - targetAudience (타겟 사용자): 이 도메인의 주요 사용자 층.
+   - solutionPromise (해결 가설): 이 도메인이 제공하는 핵심 가치 제안.
    - boundaries (서비스 경계): 포함되는 기능과 포함되지 않는 기능의 명확한 구분.
-   - stakeholders (핵심 이해관계자): 주요 사용자 페르소나와 시스템 액터.
    - kpis (성공 지표): 비즈니스 성공을 판단할 수 있는 지표.
+   - glossary (핵심 용어집): 도메인 내 소통의 오해를 없애기 위한 핵심 용어 및 비즈니스 개념 정의.
 4. 각 도메인에 속하는 모듈들의 ID(moduleIds)를 배열로 매핑하세요. 모든 모듈은 반드시 하나의 도메인에 속해야 합니다.
 5. 가독성을 위해 리스트 항목 사이에는 반드시 빈 줄을 삽입하세요.
 
@@ -1615,12 +1652,14 @@ ${JSON.stringify(modules, null, 2)}
 {
   "domains": [
     {
-      "title": "직관적인 한국어 도메인 이름",
-      "summary": "한국어 도메인 요약",
-      "vision": "마크다운 형식의 비즈니스 비전",
-      "boundaries": "마크다운 형식의 서비스 경계",
-      "stakeholders": "마크다운 형식의 핵심 이해관계자",
-      "kpis": "마크다운 형식의 성공 지표",
+      "title": "...",
+      "summary": "...",
+      "painPoint": "...",
+      "targetAudience": "...",
+      "solutionPromise": "...",
+      "boundaries": "...",
+      "kpis": "...",
+      "glossary": "...",
       "moduleIds": ["모듈 ID 1", "모듈 ID 2"]
     }
   ]
@@ -1641,16 +1680,18 @@ ${JSON.stringify(modules, null, 2)}
               properties: {
                 title: { type: Type.STRING },
                 summary: { type: Type.STRING },
-                vision: { type: Type.STRING },
+                painPoint: { type: Type.STRING },
+                targetAudience: { type: Type.STRING },
+                solutionPromise: { type: Type.STRING },
                 boundaries: { type: Type.STRING },
-                stakeholders: { type: Type.STRING },
                 kpis: { type: Type.STRING },
+                glossary: { type: Type.STRING },
                 moduleIds: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING }
                 }
               },
-              required: ["title", "summary", "vision", "boundaries", "stakeholders", "kpis", "moduleIds"]
+              required: ["title", "summary", "painPoint", "targetAudience", "solutionPromise", "boundaries", "kpis", "glossary", "moduleIds"]
             }
           }
         },
@@ -2083,7 +2124,7 @@ export const generateInitialPTS = async (input: string, existingNotes: Note[] = 
   const context = formatContext(existingNotes);
 
   const prompt = `당신은 세계 최고의 비즈니스 전략가입니다.
-사용자의 아이디어를 분석하여 3~5개의 서로 다른 관점을 가진 Pain-Target-Solution (PTS) 조합을 생성하세요.
+사용자의 아이디어를 분석하여 다양한 관점을 가진 Pain-Target-Solution (PTS) 조합을 생성하세요.
 ${context}
 
 [사용자 입력]
@@ -2092,7 +2133,8 @@ ${input}
 [작성 지침]
 1. 각 조합은 독립적이어야 하며 서로 다른 비즈니스 관점을 가져야 합니다.
 2. 비전공자도 이해할 수 있는 쉬운 한국어를 사용하세요.
-3. 반드시 아래 JSON 배열 형식으로 응답하세요:
+3. 아이디어의 복잡도에 따라 충분한 개수(최소 5개 이상)를 생성하세요.
+4. 반드시 아래 JSON 배열 형식으로 응답하세요:
 [
   {
     "painPoint": "...",
@@ -2126,15 +2168,39 @@ ${input}
   return result.map((r: any) => ({ ...r, id: crypto.randomUUID(), selected: false }));
 };
 
-export const generateMorePTS = async (existingPTS: StrategyPillarOption[]): Promise<StrategyPillarOption[]> => {
-  const prompt = `당신은 세계 최고의 비즈니스 전략가입니다.
-기존에 제안된 PTS 조합들과 중복되지 않는 완전히 새로운 관점의 PTS 조합 3개를 추가로 생성하세요.
+export const generateMorePTS = async (existingPTS: StrategyPillarOption[], initialIdea: string = "", mode: 'industry' | 'idea' = 'industry'): Promise<StrategyPillarOption[]> => {
+  const prompt = mode === 'industry' 
+    ? `당신은 세계 최고의 비즈니스 전략가입니다.
+기존에 제안된 PTS 조합들과 중복되지 않는 새로운 관점의 PTS 조합 3~5개를 추가로 생성하세요.
+이번 확장은 [산업/분야 전체]의 관점에서, 해당 비즈니스 도메인에서 놓치고 있는 보편적이고 강력한 전략적 기회를 탐색하는 것입니다.
+
+[기존 조합들 (중복 금지)]
+${JSON.stringify(existingPTS.map(p => ({ painPoint: p.painPoint, targetAudience: p.targetAudience, solutionPromise: p.solutionPromise })), null, 2)}
+
+[비즈니스 맥락]
+${initialIdea}
+
+[작성 지침]
+1. 해당 산업군(Industry)의 트렌드와 베스트 프랙티스를 반영하여 새로운 관점을 제시하세요.
+2. 반드시 아래 JSON 배열 형식으로 응답하세요:
+[
+  {
+    "painPoint": "...",
+    "targetAudience": "...",
+    "solutionPromise": "..."
+  }
+]`
+    : `당신은 세계 최고의 비즈니스 전략가입니다.
+사용자의 [초기 아이디어]에 깊게 의존하여, 그 철학과 핵심 가치를 더욱 구체화하거나 파생시킨 새로운 PTS 조합 3~5개를 추가로 생성하세요.
+
+[사용자 초기 아이디어]
+${initialIdea}
 
 [기존 조합들 (중복 금지)]
 ${JSON.stringify(existingPTS.map(p => ({ painPoint: p.painPoint, targetAudience: p.targetAudience, solutionPromise: p.solutionPromise })), null, 2)}
 
 [작성 지침]
-1. 기존 조합과 완전히 다른 새로운 관점을 제시하세요.
+1. 사용자의 초기 의도와 아이디어의 독창성을 극대화하는 방향으로 확장하세요.
 2. 반드시 아래 JSON 배열 형식으로 응답하세요:
 [
   {
@@ -2169,6 +2235,45 @@ ${JSON.stringify(existingPTS.map(p => ({ painPoint: p.painPoint, targetAudience:
   return result.map((r: any) => ({ ...r, id: crypto.randomUUID(), selected: false }));
 };
 
+export const summarizeStrategicPillars = async (selectedPTS: StrategyPillarOption[]): Promise<{ painPoint: string, targetAudience: string, solutionPromise: string }> => {
+  const prompt = `당신은 세계 최고의 비즈니스 전략가입니다.
+사용자가 선택한 여러 개의 전략적 기회(PTS)들을 분석하여, 이를 하나의 응집력 있고 강력한 비즈니스 전략 요약으로 통합하세요.
+
+[선택된 전략들]
+${selectedPTS.map((pts, i) => `전략 ${i+1}:\n- Pain: ${pts.painPoint}\n- Target: ${pts.targetAudience}\n- Solution: ${pts.solutionPromise}`).join('\n\n')}
+
+[작성 지침]
+1. 나열식이 아닌, 전체를 관통하는 하나의 서사로 통합하세요.
+2. 각 항목(Pain, Target, Solution)에 대해 너무 길지 않으면서도 핵심을 찌르는 문장들로 구성하세요.
+3. 비전공자 창업자도 가슴이 뛸 만큼 매력적이고 전문적인 언어를 사용하세요.
+4. 반드시 아래 JSON 형식으로 응답하세요:
+{
+  "painPoint": "...",
+  "targetAudience": "...",
+  "solutionPromise": "..."
+}`;
+
+  const responsePromise = ai.models.generateContent({
+    model: PRO_MODEL,
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          painPoint: { type: Type.STRING },
+          targetAudience: { type: Type.STRING },
+          solutionPromise: { type: Type.STRING }
+        },
+        required: ["painPoint", "targetAudience", "solutionPromise"]
+      }
+    }
+  });
+
+  const response = await withTimeout(responsePromise, 30000, { text: "{}" } as any);
+  return JSON.parse(response.text || "{}");
+};
+
 export const deepDivePTS = async (pts: StrategyPillarOption, initialIdea: string = ""): Promise<StrategyPillarOption[]> => {
   const prompt = `당신은 세계 최고의 비즈니스 전략가입니다.
 다음 PTS 조합을 더 세분화하여 구체적인 하위 PTS 조합 3개를 생성하세요.
@@ -2182,9 +2287,9 @@ ${initialIdea}
 - Solution: ${pts.solutionPromise}
 
 [작성 지침]
-1. 도메인 가드레일: 위 [프로젝트 핵심 테마]에서 정의된 도메인 맥락(예: 칵테일)을 절대 벗어나지 마세요. 
-2. 유연한 확장: 핵심 테마 안에서는 자유롭게 확장 가능합니다. (예: 칵테일 -> 홈파티, 비율 조정, 도구 관리 등은 OK / 칵테일 -> 커피 로스팅, 요리 등은 NO)
-3. 구체화: 대상을 더 좁히거나, Pain을 더 구체적인 상황으로 분해하세요. 추상적인 논리 패턴(버전 관리 등)에만 매몰되지 말고 실제 사용자의 상황을 파고드세요.
+1. 도메인 가드레일: 위 [프로젝트 핵심 테마]에서 정의된 도메인 맥락을 절대 벗어나지 마세요. 
+2. 유연한 확장: 핵심 테마 안에서는 자유롭게 확장 가능하지만, 테마와 전혀 관련 없는 분야로 이탈하지 마세요.
+3. 구체화: 대상을 더 좁히거나, Pain을 더 구체적인 상황으로 분해하세요. 추상적인 논리 패턴에만 매몰되지 말고 실제 사용자의 상황을 파고드세요.
 4. 반드시 아래 JSON 배열 형식으로 응답하세요:
 [
   {
@@ -2272,7 +2377,7 @@ export const generateDomainsWithPillars = async (selectedPTS: StrategyPillarOpti
 사용자가 선택한 다수의 핵심 전략(PTS)과 기존 프로젝트 맥락을 결합하여 최적의 시스템 도메인 구조 후보군을 설계하세요.
 
 [설계 지침]
-1. 전략적 매핑: 선택된 모든 PTS 조합을 커버할 수 있는 도메인 후보들을 제안하세요.
+1. 전략적 매핑: 5~7개의 최상위 도메인을 제안해야 하며, 선택된 모든 전략적 기회(PTS)를 빠짐없이 커버해야 합니다.
 2. 각 도메인은 어떤 PTS를 해결하기 위해 존재하는지 명확히 반영되어야 하며, 'coveredPtsIds' 배열에 해당 PTS의 ID를 포함해야 합니다.
 3. 각 도메인의 이름(title)과 요약(summary)을 직관적인 한국어로 작성하세요.
 4. 각 도메인별로 다음 3가지 필러를 정의하세요:
@@ -2347,7 +2452,7 @@ ${ptsContext}
   return { domains };
 };
 
-export const generateMoreDomains = async (currentDomains: DomainCandidate[], selectedPTS: StrategyPillarOption[], existingNotes: Note[] = []): Promise<DomainCandidate[]> => {
+export const generateMoreDomains = async (currentDomains: DomainCandidate[], selectedPTS: StrategyPillarOption[], existingNotes: Note[] = [], mode: 'industry' | 'idea' = 'industry'): Promise<DomainCandidate[]> => {
   const context = formatContext(existingNotes);
   const ptsContext = selectedPTS.map((pts, i) => 
     `전략 ${i+1} (ID: ${pts.id}):\n- Pain: ${pts.painPoint}\n- Target: ${pts.targetAudience}\n- Solution: ${pts.solutionPromise}`
@@ -2355,7 +2460,8 @@ export const generateMoreDomains = async (currentDomains: DomainCandidate[], sel
 
   const currentDomainsContext = currentDomains.map(d => `- ${d.title}: ${d.summary}`).join('\n');
 
-  const prompt = `당신은 세계 최고의 소프트웨어 아키텍트입니다.
+  const prompt = mode === 'industry'
+    ? `당신은 세계 최고의 소프트웨어 아키텍트입니다.
 현재 설계된 도메인 리스트를 분석하여, 비즈니스 운영이나 확장성을 위해 '있으면 좋은데 놓치고 있는' 새로운 보조 도메인 후보 2~3개를 제안하세요. (수평 확장)
 
 [현재 도메인 구성]
@@ -2366,6 +2472,33 @@ ${ptsContext}
 
 [작성 지침]
 1. 기존 도메인과 겹치지 않는 새로운 관점(예: 사용자 커뮤니티, 데이터 분석, 운영 관리 등)의 도메인을 제안하세요.
+2. 해당 분야의 보편적이고 강한 전략을 반영한 도메인을 제안하세요.
+3. 각 도메인은 어떤 PTS를 간접적으로라도 지원하는지 'coveredPtsIds'에 명시하세요.
+4. 반드시 아래 JSON 배열 형식으로 응답하세요:
+[
+  {
+    "title": "...",
+    "summary": "...",
+    "painPoint": "...",
+    "targetAudience": "...",
+    "solutionPromise": "...",
+    "boundaries": "...",
+    "kpis": "...",
+    "glossary": "...",
+    "coveredPtsIds": ["pts-id-1"]
+  }
+]`
+    : `당신은 세계 최고의 소프트웨어 아키텍트입니다.
+현재 설계된 도메인 리스트를 분석하여, 초기 아이디어와 핵심 전략(PTS)을 더욱 깊게 파고드는 새로운 도메인 후보 2~3개를 제안하세요. (수평 확장)
+
+[현재 도메인 구성]
+${currentDomainsContext}
+
+[선택된 다중 핵심 전략 (PTS)]
+${ptsContext}
+
+[작성 지침]
+1. 기존 도메인과 겹치지 않으면서도, 초기 아이디어와 PTS의 철학/가치를 크게 반영한 특화된 도메인을 제안하세요.
 2. 각 도메인은 어떤 PTS를 간접적으로라도 지원하는지 'coveredPtsIds'에 명시하세요.
 3. 반드시 아래 JSON 배열 형식으로 응답하세요:
 [

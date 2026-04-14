@@ -12,6 +12,7 @@ import {
   MessageSquare, 
   Loader2, 
   ChevronRight, 
+  ChevronDown,
   Layers, 
   Box, 
   Code2,
@@ -35,7 +36,9 @@ import {
   refineModules,
   generateDomainRefinementSuggestions,
   generateModuleRefinementSuggestions,
-  generateBulkModuleSuggestions
+  generateBulkModuleSuggestions,
+  summarizeStrategicPillars,
+  generateDetailedBlueprint
 } from '../services/gemini';
 import * as dbManager from '../services/dbManager';
 import { saveNoteToSync } from '../services/syncManager';
@@ -84,10 +87,13 @@ export const BlueprintWizard = ({
     logicsMap, setLogicsMap
   } = useGenerator();
   const [isLoading, setIsLoading] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showDomainMoreOptions, setShowDomainMoreOptions] = useState(false);
   const [isExpandingDomains, setIsExpandingDomains] = useState(false);
   const [splittingDomainId, setSplittingDomainId] = useState<string | null>(null);
   const [deepeningDomainId, setDeepeningDomainId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progressMsg, setProgressMsg] = useState<string>('');
 
   // Auto-start if initialIdea is provided
   React.useEffect(() => {
@@ -96,13 +102,13 @@ export const BlueprintWizard = ({
     }
   }, [initialIdea]);
 
-  const handleGenerateMoreDomains = async () => {
+  const handleGenerateMoreDomains = async (mode: 'industry' | 'idea') => {
     setError(null);
     setIsExpandingDomains(true);
     try {
       const existingNotes = await dbManager.getNotesByProject(projectId);
       const selectedOptions = ptsOptions.filter(o => o.selected);
-      const moreDomains = await generateMoreDomains(domains, selectedOptions, existingNotes);
+      const moreDomains = await generateMoreDomains(domains, selectedOptions, existingNotes, mode);
       setDomains([...domains, ...moreDomains]);
     } catch (err: any) {
       setError(err.message);
@@ -326,28 +332,46 @@ export const BlueprintWizard = ({
     if (!user || !projectId) return;
     const targetLogicsMap = finalLogicsMap || logicsMap;
     setIsLoading(true);
+    setProgressMsg('비즈니스 전략 요약 중...');
     try {
       const project = await dbManager.getProject(projectId);
       if (project) {
         const selectedOptions = ptsOptions.filter(o => o.selected);
+        // Summarize PTS instead of just joining
+        const summary = await summarizeStrategicPillars(selectedOptions);
         await dbManager.saveProject({
           ...project,
-          painPoint: selectedOptions.map(o => o.painPoint).join('\n\n'),
-          targetAudience: selectedOptions.map(o => o.targetAudience).join('\n\n'),
-          solutionPromise: selectedOptions.map(o => o.solutionPromise).join('\n\n')
+          painPoint: summary.painPoint,
+          targetAudience: summary.targetAudience,
+          solutionPromise: summary.solutionPromise
         });
       }
 
-      for (let i = 0; i < domains.length; i++) {
-        const domainData = domains[i];
+      // Build blueprint structure for detailed generation
+      const blueprint = {
+        domains: domains.map((domain, i) => ({
+          ...domain,
+          modules: (modulesMap[i] || []).map((mod, j) => ({
+            ...mod,
+            logics: targetLogicsMap[`${i}-${j}`] || []
+          }))
+        }))
+      };
+
+      setProgressMsg('설계도 정밀 분석 및 상세화 시작...');
+      const detailed = await generateDetailedBlueprint(blueprint, (msg) => {
+        setProgressMsg(msg);
+      });
+
+      for (const domain of detailed.domains) {
         const domainId = crypto.randomUUID();
         const domainNote: Note = {
           id: domainId,
           projectId,
           uid: user.uid,
-          title: domainData.title,
-          summary: domainData.summary,
-          body: domainData.summary,
+          title: domain.title,
+          summary: domain.summary,
+          body: domain.content || domain.summary,
           noteType: 'Domain',
           status: 'Todo',
           priority: 'Medium',
@@ -355,76 +379,77 @@ export const BlueprintWizard = ({
           createdAt: new Date().toISOString(),
           parentNoteIds: [],
           childNoteIds: [],
-          boundaries: domainData.boundaries,
-          kpis: domainData.kpis,
-          glossary: domainData.glossary,
-          painPoint: domainData.painPoint,
-          targetAudience: domainData.targetAudience,
-          solutionPromise: domainData.solutionPromise
+          boundaries: domain.boundaries,
+          kpis: domain.kpis,
+          glossary: domain.glossary,
+          painPoint: domain.painPoint,
+          targetAudience: domain.targetAudience,
+          solutionPromise: domain.solutionPromise
         };
         await saveNoteToSync(domainNote);
 
-        const domainModules = modulesMap[i] || [];
         const moduleIds: string[] = [];
+        if (domain.modules) {
+          for (const mod of domain.modules) {
+            const moduleId = crypto.randomUUID();
+            moduleIds.push(moduleId);
 
-        for (let j = 0; j < domainModules.length; j++) {
-          const moduleData = domainModules[j];
-          const moduleId = crypto.randomUUID();
-          moduleIds.push(moduleId);
-
-          const moduleNote: Note = {
-            id: moduleId,
-            projectId,
-            uid: user.uid,
-            title: moduleData.title,
-            summary: moduleData.summary,
-            body: moduleData.summary,
-            noteType: 'Module',
-            status: 'Todo',
-            priority: 'Medium',
-            lastUpdated: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            parentNoteIds: [domainId],
-            childNoteIds: [],
-            uxGoals: moduleData.uxGoals,
-            requirements: moduleData.requirements,
-            userJourney: moduleData.userJourney,
-            ia: moduleData.ia,
-            painPoint: moduleData.painPoint,
-            targetAudience: moduleData.targetAudience,
-            solutionPromise: moduleData.solutionPromise
-          };
-          await saveNoteToSync(moduleNote);
-
-          const moduleLogics = targetLogicsMap[`${i}-${j}`] || [];
-          const logicIds: string[] = [];
-
-          for (const logicData of moduleLogics) {
-            const logicId = crypto.randomUUID();
-            logicIds.push(logicId);
-
-            const logicNote: Note = {
-              id: logicId,
+            const moduleNote: Note = {
+              id: moduleId,
               projectId,
               uid: user.uid,
-              title: logicData.title,
-              summary: logicData.summary,
-              body: logicData.summary,
-              noteType: 'Logic',
+              title: mod.title,
+              summary: mod.summary,
+              body: mod.content || mod.summary,
+              noteType: 'Module',
               status: 'Todo',
               priority: 'Medium',
               lastUpdated: new Date().toISOString(),
               createdAt: new Date().toISOString(),
-              parentNoteIds: [moduleId],
+              parentNoteIds: [domainId],
               childNoteIds: [],
-              businessRules: logicData.businessRules,
-              constraints: logicData.constraints,
-              ioMapping: logicData.ioMapping,
-              edgeCases: logicData.edgeCases
+              requirements: mod.requirements,
+              userJourney: mod.userJourney,
+              ia: mod.ia,
+              painPoint: mod.painPoint,
+              targetAudience: mod.targetAudience,
+              solutionPromise: mod.solutionPromise
             };
-            await saveNoteToSync(logicNote);
+            await saveNoteToSync(moduleNote);
+
+            const logicIds: string[] = [];
+            if (mod.logics) {
+              for (const logic of mod.logics) {
+                const logicId = crypto.randomUUID();
+                logicIds.push(logicId);
+
+                const logicNote: Note = {
+                  id: logicId,
+                  projectId,
+                  uid: user.uid,
+                  title: logic.title,
+                  summary: logic.summary,
+                  body: logic.content || logic.summary,
+                  noteType: 'Logic',
+                  status: 'Todo',
+                  priority: 'Medium',
+                  lastUpdated: new Date().toISOString(),
+                  createdAt: new Date().toISOString(),
+                  parentNoteIds: [moduleId],
+                  childNoteIds: [],
+                  painPoint: logic.painPoint,
+                  targetAudience: logic.targetAudience,
+                  solutionPromise: logic.solutionPromise,
+                  businessRules: logic.businessRules,
+                  constraints: logic.constraints,
+                  ioMapping: logic.ioMapping,
+                  edgeCases: logic.edgeCases
+                };
+                await saveNoteToSync(logicNote);
+              }
+            }
+            await saveNoteToSync({ ...moduleNote, childNoteIds: logicIds });
           }
-          await saveNoteToSync({ ...moduleNote, childNoteIds: logicIds });
         }
         await saveNoteToSync({ ...domainNote, childNoteIds: moduleIds });
       }
@@ -434,6 +459,7 @@ export const BlueprintWizard = ({
       setError(err.message);
     } finally {
       setIsLoading(false);
+      setProgressMsg('');
     }
   };
 
@@ -456,8 +482,31 @@ export const BlueprintWizard = ({
     <motion.div 
       initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      className="w-full md:h-full flex flex-col"
+      className="w-full md:h-full flex flex-col relative"
     >
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-6"
+          >
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-primary/20 rounded-full"></div>
+              <div className="absolute top-0 left-0 w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Sparkles className="text-primary animate-pulse" size={32} />
+              </div>
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-black tracking-tight animate-pulse">AI 아키텍트가 설계 중...</h3>
+              <p className="text-sm font-medium text-muted-foreground">{progressMsg || '잠시만 기다려주세요.'}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
         {/* Stepper */}
         <div className="px-8 py-4 border-b border-border bg-muted/5 flex items-center justify-between overflow-x-auto custom-scrollbar gap-4">
           {STEPS.map((step) => (
@@ -524,25 +573,60 @@ export const BlueprintWizard = ({
                         <h3 className="text-2xl font-black tracking-tight">전략 탐구 및 조립</h3>
                         <p className="text-muted-foreground">마음에 드는 전략 조각들을 선택하여 당신만의 비즈니스 모델을 조립하세요.</p>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                        <button 
-                          onClick={async () => {
-                            setIsLoading(true);
-                            try {
-                              const more = await generateMorePTS(ptsOptions);
-                              setPtsOptions([...ptsOptions, ...more]);
-                            } catch (err: any) {
-                              setError(err.message);
-                            } finally {
-                              setIsLoading(false);
-                            }
-                          }}
-                          disabled={isLoading}
-                          className="bg-muted hover:bg-muted/80 px-6 py-4 md:py-3 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50 w-full md:w-auto"
-                        >
-                          {isLoading ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                          더 많이 보기 (수평 확장)
-                        </button>
+                      <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto relative">
+                        <div className="relative group">
+                          <button 
+                            onClick={() => setShowMoreOptions(!showMoreOptions)}
+                            disabled={isLoading}
+                            className="bg-muted hover:bg-muted/80 px-6 py-4 md:py-3 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50 w-full md:w-auto"
+                          >
+                            {isLoading ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                            더 많이 보기 (수평 확장)
+                            <ChevronDown size={16} className={`transition-transform ${showMoreOptions ? 'rotate-180' : ''}`} />
+                          </button>
+                          
+                          {showMoreOptions && (
+                            <div className="absolute top-full left-0 mt-2 w-full md:w-64 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                              <button
+                                onClick={async () => {
+                                  setShowMoreOptions(false);
+                                  setIsLoading(true);
+                                  try {
+                                    const more = await generateMorePTS(ptsOptions, userInput, 'industry');
+                                    setPtsOptions([...ptsOptions, ...more]);
+                                  } catch (err: any) {
+                                    setError(err.message);
+                                  } finally {
+                                    setIsLoading(false);
+                                  }
+                                }}
+                                className="w-full px-4 py-3 text-left hover:bg-muted flex flex-col gap-1 transition-colors"
+                              >
+                                <span className="font-bold text-sm">1. 산업/분야 수평 확장</span>
+                                <span className="text-xs text-muted-foreground">해당 분야의 보편적이고 강력한 전략 탐색</span>
+                              </button>
+                              <div className="h-px bg-border" />
+                              <button
+                                onClick={async () => {
+                                  setShowMoreOptions(false);
+                                  setIsLoading(true);
+                                  try {
+                                    const more = await generateMorePTS(ptsOptions, userInput, 'idea');
+                                    setPtsOptions([...ptsOptions, ...more]);
+                                  } catch (err: any) {
+                                    setError(err.message);
+                                  } finally {
+                                    setIsLoading(false);
+                                  }
+                                }}
+                                className="w-full px-4 py-3 text-left hover:bg-muted flex flex-col gap-1 transition-colors"
+                              >
+                                <span className="font-bold text-sm">2. 아이디어 심화 확장</span>
+                                <span className="text-xs text-muted-foreground">초기 아이디어의 철학과 가치를 구체화</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         <button 
                           onClick={() => handleNextStep(2)}
                           disabled={isLoading || ptsOptions.filter(o => o.selected).length === 0}
@@ -617,14 +701,45 @@ export const BlueprintWizard = ({
                         <p className="text-muted-foreground">프로젝트를 구성하는 거대한 뼈대입니다. 필요한 도메인을 선택하고 조립하세요.</p>
                       </div>
                       <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                        <button 
-                          onClick={handleGenerateMoreDomains}
-                          disabled={isExpandingDomains}
-                          className="bg-muted text-foreground px-6 py-4 md:py-3 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-muted/80 transition-all w-full md:w-auto"
-                        >
-                          {isExpandingDomains ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                          다른 관점 더 보기 (수평 확장)
-                        </button>
+                        <div className="relative w-full md:w-auto">
+                          <button 
+                            onClick={() => setShowDomainMoreOptions(!showDomainMoreOptions)}
+                            disabled={isExpandingDomains}
+                            className="bg-muted text-foreground px-6 py-4 md:py-3 rounded-xl font-black uppercase tracking-widest flex items-center justify-between md:justify-center gap-2 hover:bg-muted/80 transition-all w-full"
+                          >
+                            <div className="flex items-center gap-2">
+                              {isExpandingDomains ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                              다른 관점 더 보기 (수평 확장)
+                            </div>
+                            <ChevronDown size={16} className={`transition-transform ${showDomainMoreOptions ? 'rotate-180' : ''}`} />
+                          </button>
+                          
+                          {showDomainMoreOptions && (
+                            <div className="absolute top-full left-0 mt-2 w-full md:w-64 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                              <button
+                                onClick={async () => {
+                                  setShowDomainMoreOptions(false);
+                                  await handleGenerateMoreDomains('industry');
+                                }}
+                                className="w-full px-4 py-3 text-left hover:bg-muted flex flex-col gap-1 transition-colors"
+                              >
+                                <span className="font-bold text-sm">1. 산업/분야 수평 확장</span>
+                                <span className="text-xs text-muted-foreground">해당 분야의 보편적이고 강력한 전략 탐색</span>
+                              </button>
+                              <div className="h-px bg-border" />
+                              <button
+                                onClick={async () => {
+                                  setShowDomainMoreOptions(false);
+                                  await handleGenerateMoreDomains('idea');
+                                }}
+                                className="w-full px-4 py-3 text-left hover:bg-muted flex flex-col gap-1 transition-colors"
+                              >
+                                <span className="font-bold text-sm">2. 아이디어 심화 확장</span>
+                                <span className="text-xs text-muted-foreground">초기 아이디어의 철학과 가치를 구체화</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         <button 
                           onClick={() => handleNextStep(3)}
                           disabled={isLoading || domains.filter(d => d.selected).length === 0}
@@ -730,20 +845,6 @@ export const BlueprintWizard = ({
                                     <><Loader2 className="animate-spin" size={12} /> 쪼개는 중...</>
                                   ) : (
                                     '이 도메인 쪼개기 (수직 확장)'
-                                  )}
-                                </button>
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    handleDeepenDomain(domain);
-                                  }}
-                                  disabled={deepeningDomainId !== null}
-                                  className="text-xs font-black uppercase tracking-widest text-secondary-foreground hover:underline flex items-center gap-1"
-                                >
-                                  {deepeningDomainId === domain.id ? (
-                                    <><Loader2 className="animate-spin" size={12} /> 생성 중...</>
-                                  ) : (
-                                    '상세 설계 자동 생성'
                                   )}
                                 </button>
                               </div>

@@ -56,6 +56,16 @@ export const GitHubSync = ({ onClose, projectId, onSyncComplete, activeLens, set
     setLogs(prev => [...prev, { msg, time }]);
   };
 
+  const getLogStyle = (msg: string) => {
+    if (msg.includes('Error') || msg.includes('failed') || msg.includes('RESOURCE_EXHAUSTED')) return 'text-destructive font-bold';
+    if (msg.includes('complete') || msg.includes('Success')) return 'text-emerald-500 font-bold';
+    if (msg.startsWith('[') && msg.includes('] Processing file:')) return 'text-primary font-black mt-4 border-t border-primary/10 pt-2';
+    if (msg.includes('Phase')) return 'text-indigo-400 font-semibold pl-2';
+    if (msg.includes('Cache Hit')) return 'text-muted-foreground italic pl-4';
+    if (msg.includes('Analyzing:') || msg.includes('Translating:')) return 'text-amber-400/80 pl-4';
+    return 'text-foreground/80';
+  };
+
   const handleSaveUrl = async () => {
     if (!projectId) return;
     try {
@@ -440,7 +450,7 @@ export const GitHubSync = ({ onClose, projectId, onSyncComplete, activeLens, set
 
       addLog(`Starting parallel synchronization for ${filesToProcess.length} files...`);
       const claimedEmptyLogics = new Set<string>();
-      const limit = pLimit(10); // Process 10 files in parallel
+      const limit = pLimit(3); // Process 3 files in parallel
 
       await Promise.all(filesToProcess.map((file, fileIndex) => limit(async () => {
         if (cancelSyncRef.current) return;
@@ -1104,19 +1114,56 @@ export const GitHubSync = ({ onClose, projectId, onSyncComplete, activeLens, set
             </button>
           </div>
           <div className="bg-black/5 dark:bg-black/40 rounded-2xl border border-border overflow-hidden flex flex-col h-[400px]">
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-[11px] space-y-1.5 scrollbar-thin">
+            {syncing && logs.length > 0 && (
+              <div className="px-4 py-2 bg-primary/5 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 size={12} className="animate-spin text-primary" />
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Syncing in progress...</span>
+                </div>
+                {logs.some(l => l.msg.includes('RESOURCE_EXHAUSTED')) && (
+                  <div className="flex items-center gap-1.5 text-destructive animate-pulse">
+                    <AlertCircle size={12} />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">API Limit Reached</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-[11px] space-y-1.5 scrollbar-thin bg-grid-white/[0.02]">
               {logs.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground/40 gap-3">
                   <RefreshCw size={24} className="opacity-20" />
                   <p>Waiting for sync activity...</p>
                 </div>
               ) : (
-                logs.map((log, i) => (
-                  <div key={i} className="flex gap-3 group">
-                    <span className="text-muted-foreground/40 shrink-0 select-none">{log.time}</span>
-                    <span className="text-foreground/80 break-all leading-relaxed">{log.msg}</span>
-                  </div>
-                ))
+                <div className="space-y-1">
+                  {logs.map((log, i) => (
+                    <div key={i} className={`flex gap-3 group transition-colors hover:bg-white/5 p-0.5 rounded ${getLogStyle(log.msg)}`}>
+                      <span className="text-muted-foreground/30 shrink-0 select-none w-14">{log.time}</span>
+                      <span className="break-all leading-relaxed">{log.msg}</span>
+                    </div>
+                  ))}
+                  {logs.some(l => l.msg.includes('RESOURCE_EXHAUSTED')) && (
+                    <div className="mt-6 p-4 bg-destructive/10 border border-destructive/30 rounded-xl space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="flex items-center gap-2 text-destructive">
+                        <AlertCircle size={16} />
+                        <h4 className="text-xs font-black uppercase tracking-widest">Critical: API Spending Cap Reached</h4>
+                      </div>
+                      <p className="text-[10px] text-destructive/80 leading-relaxed">
+                        Gemini API의 월간 사용 한도(Spending Cap)를 초과했습니다. <br/>
+                        AI Studio 설정에서 한도를 늘리거나 다음 달까지 기다려야 합니다. <br/>
+                        현재까지 완료된 파일들은 저장되었으나, 나머지는 분석되지 않았습니다.
+                      </p>
+                      <a 
+                        href="https://aistudio.google.com/app/billing" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-block text-[10px] font-bold text-destructive underline hover:text-destructive/70"
+                      >
+                        AI Studio 결제 설정 바로가기
+                      </a>
+                    </div>
+                  )}
+                </div>
               )}
               <div ref={logsEndRef} />
             </div>

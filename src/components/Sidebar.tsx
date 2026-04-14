@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Note, Project, OperationType, LensType } from '../types';
 import { handleFirestoreError } from '../lib/utils';
-import { Folder, FileText, Plus, CheckSquare, Trash2, PanelLeftClose, ChevronDown, Check, FolderGit2, Circle, CheckCircle2, RefreshCw, Sparkles, FoldVertical, UnfoldVertical, FileEdit, X } from 'lucide-react';
+import { Folder, FileText, Plus, CheckSquare, Trash2, PanelLeftClose, ChevronDown, Check, FolderGit2, Circle, CheckCircle2, RefreshCw, Sparkles, FoldVertical, UnfoldVertical, FileEdit, X, Upload } from 'lucide-react';
 import * as dbManager from '../services/dbManager';
 import { generateInitialBlueprint } from '../services/gemini';
+import { saveNoteToSync } from '../services/syncManager';
 
 export const Sidebar = ({ 
   onSelectNote, 
@@ -150,6 +151,69 @@ export const Sidebar = ({
     } catch (error) {
       console.error("Error creating local project", error);
       setIsCreatingProject(false);
+    }
+  };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportProject = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+
+        if (!data.project || !data.notes) {
+          throw new Error("Invalid project file format");
+        }
+
+        const newProjectId = crypto.randomUUID();
+        const newProject = {
+          ...data.project,
+          id: newProjectId,
+          name: `${data.project.name} (Imported)`,
+          uid: user.uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // ID Mapping
+        const idMap = new Map<string, string>();
+        data.notes.forEach((note: any) => {
+          idMap.set(note.id, crypto.randomUUID());
+        });
+
+        const newNotes = data.notes.map((note: any) => ({
+          ...note,
+          id: idMap.get(note.id),
+          projectId: newProjectId,
+          uid: user.uid,
+          parentNoteIds: (note.parentNoteIds || []).map((id: string) => idMap.get(id)).filter(Boolean),
+          childNoteIds: (note.childNoteIds || []).map((id: string) => idMap.get(id)).filter(Boolean),
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+        }));
+
+        await dbManager.saveProject(newProject);
+        for (const note of newNotes) {
+          await saveNoteToSync(note, user.uid);
+        }
+
+        const localProjects = await dbManager.getAllProjects();
+        setProjects(localProjects);
+        onSelectProject(newProjectId);
+        setIsProjectMenuOpen(false);
+      } catch (error) {
+        console.error("Failed to import project", error);
+        alert("프로젝트 불러오기에 실패했습니다.");
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -586,12 +650,27 @@ export const Sidebar = ({
                         </div>
                       </form>
                     ) : (
-                      <button
-                        onClick={() => setIsCreatingProject(true)}
-                        className="w-full text-left px-3 py-2 text-sm text-primary font-semibold hover:bg-primary/5 rounded-xl flex items-center gap-2 transition-colors"
-                      >
-                        <Plus size={16} /> New Project
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setIsCreatingProject(true)}
+                          className="w-full text-left px-3 py-2 text-sm text-primary font-semibold hover:bg-primary/5 rounded-xl flex items-center gap-2 transition-colors"
+                        >
+                          <Plus size={16} /> New Project
+                        </button>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full text-left px-3 py-2 text-sm text-blue-500 font-semibold hover:bg-blue-500/10 rounded-xl flex items-center gap-2 transition-colors mt-1"
+                        >
+                          <Upload size={16} /> Import Project
+                        </button>
+                        <input
+                          type="file"
+                          accept=".json"
+                          className="hidden"
+                          ref={fileInputRef}
+                          onChange={handleImportProject}
+                        />
+                      </>
                     )}
                   </div>
                 </>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Note, NoteType, NoteStatus, NotePriority, OperationType, CSuiteEvaluation } from '../types';
 import { handleFirestoreError } from '../lib/utils';
-import { Trash2, Save, Eye, Edit3, Sparkles, Loader2, AlertTriangle, CheckCircle2, FileWarning, PanelTop, Users, Code2, Megaphone, DollarSign, Info, Layers, History, Fingerprint, Target, Zap } from 'lucide-react';
+import { Trash2, Save, Eye, Edit3, Sparkles, Loader2, AlertTriangle, CheckCircle2, FileWarning, PanelTop, Users, Code2, Megaphone, DollarSign, Info, Layers, History, Fingerprint, Target, Zap, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -19,6 +19,41 @@ const getCleanSummary = (summary: string | undefined) => {
   // 끝에 남아있는 따옴표나 쉼표 제거
   clean = clean.replace(/["\s,]+$/, '');
   return clean;
+};
+
+const FormattedConflictSummary = ({ summary }: { summary: string | undefined }) => {
+  if (!summary) return null;
+  
+  const cleanSummary = getCleanSummary(summary);
+  // 문장 단위로 분리 (마침표 뒤에 공백이 있는 경우)
+  const sentences = cleanSummary.split(/\.\s+/).filter(s => s.trim().length > 0);
+
+  return (
+    <div className="space-y-4">
+      {sentences.map((sentence, idx) => {
+        // 괄호 안의 용어 추출 (예: "(Business Logic Mismatch)")
+        const termMatch = sentence.match(/\(([^)]+)\)$/);
+        const term = termMatch ? termMatch[1] : null;
+        const text = term ? sentence.replace(/\([^)]+\)$/, '').trim() : sentence.trim();
+
+        return (
+          <div key={idx} className="flex gap-3 group/sentence bg-destructive/5 p-3 rounded-xl border border-destructive/10 hover:border-destructive/30 transition-all">
+            <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-destructive/40 shrink-0 group-hover/sentence:bg-destructive transition-colors" />
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-medium">
+                {text}{text.endsWith('.') ? '' : '.'}
+              </p>
+              {term && (
+                <span className="inline-flex items-center px-2 py-0.5 bg-destructive/10 text-destructive text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-md border border-destructive/20">
+                  {term}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 export const NoteEditor = ({ noteId, projectId, onSaved, onDeleted }: { noteId: string | null, projectId: string | null, onSaved: () => void, onDeleted?: () => void }) => {
@@ -43,6 +78,7 @@ export const NoteEditor = ({ noteId, projectId, onSaved, onDeleted }: { noteId: 
     }
     return true;
   });
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('showMetadata', showMetadata.toString());
@@ -220,6 +256,79 @@ export const NoteEditor = ({ noteId, projectId, onSaved, onDeleted }: { noteId: 
     } finally {
       setIsFormatting(false);
       setIsSaving(false);
+    }
+  };
+
+  const handleCopyAIPrompt = async () => {
+    if (!note || !noteId || noteId === 'new') return;
+    try {
+      const allNotes = await dbManager.getAllNotes();
+      const projectNotes = allNotes.filter(n => n.projectId === note.projectId);
+      
+      let promptText = `당신은 이 프로젝트의 수석 개발자입니다. 도메인>모듈>로직 계층 구조과 다음 명세를 바탕으로 프로그램을 구현해야 합니다.\n`;
+      promptText += `위 기획서는 화면에 텍스트로 보여주기 위한 설명서가 아닙니다. 기획서에 언급된 키워드나 예시를 화면에 하드코딩해서 나열하지 마세요.\n`;
+      promptText += `당신의 목표는 이 기획을 바탕으로 실제로 상호작용이 가능한(Functional) 애플리케이션을 구축하는 것입니다.\n`;
+      promptText += `화면 UI를 그리기 전에, 이 기획을 작동시키기 위한 데이터 구조(상태 관리, DB 스키마 등)를 먼저 완벽하게 설계하세요. 버튼을 누르면 실제로 상태가 변하고, 기획서에 명시된대로 실제 코드가 작동하도록 로직을 구현하세요."\n`;
+      promptText += `=========================================\n`;
+      promptText += `\n[${note.noteType} : ${note.title}]\n`;
+      promptText += `\n핵심 요약:\n${note.summary || '없음'}\n`;
+      promptText += `\n문제점:\n${note.painPoint || '없음'}\n`;
+      promptText += `\n해결법:\n${note.solutionPromise || '없음'}\n`;
+      
+      if (note.noteType === 'Domain') {
+        promptText += `\n도메인 범위:\n${note.boundaries || '없음'}\n`;
+        promptText += `\n성공 지표:\n${note.kpis || '없음'}\n`;
+        promptText += `\n용어 정의:\n${note.glossary || '없음'}\n`;
+        
+        const childModules = projectNotes.filter(n => n.noteType === 'Module' && n.parentNoteIds?.includes(noteId) && n.status !== 'Done');
+        if (childModules.length > 0) {
+          promptText += `\n[구현 대상 하위 모듈 목록]\n`;
+          childModules.forEach(mod => {
+            promptText += `\n[Module : ${mod.title}]\n`;
+            promptText += `\n핵심 요약:\n${mod.summary || '없음'}\n`;
+            promptText += `\n문제점:\n${mod.painPoint || '없음'}\n`;
+            promptText += `\n해결법:\n${mod.solutionPromise || '없음'}\n`;
+            promptText += `\n요구 사항:\n${mod.requirements || '없음'}\n`;
+            promptText += `\n유저 경험:\n${mod.userJourney || '없음'}\n`;
+            promptText += `\n정보 구조:\n${mod.ia || '없음'}\n`;
+          });
+        } else {
+          promptText += `\n(구현할 하위 모듈이 없습니다.)\n`;
+        }
+      } else if (note.noteType === 'Module') {
+        promptText += `\n요구 사항:\n${note.requirements || '없음'}\n`;
+        promptText += `\n유저 경험:\n${note.userJourney || '없음'}\n`;
+        promptText += `\n정보 구조:\n${note.ia || '없음'}\n`;
+        
+        const childLogics = projectNotes.filter(n => n.noteType === 'Logic' && n.parentNoteIds?.includes(noteId) && n.status !== 'Done');
+        if (childLogics.length > 0) {
+          promptText += `\n[구현 대상 하위 로직 목록]\n`;
+          childLogics.forEach(logic => {
+            promptText += `\n[Logic : ${logic.title}]\n`;
+            promptText += `\n핵심 요약:\n${logic.summary || '없음'}\n`;
+            promptText += `\n문제점:\n${logic.painPoint || '없음'}\n`;
+            promptText += `\n해결법:\n${logic.solutionPromise || '없음'}\n`;
+            promptText += `\n의사결정 규칙:\n${logic.businessRules || '없음'}\n`;
+            promptText += `\n제약 사항:\n${logic.constraints || '없음'}\n`;
+            promptText += `\n데이터 입출력:\n${logic.ioMapping || '없음'}\n`;
+            promptText += `\n예외 처리:\n${logic.edgeCases || '없음'}\n`;
+          });
+        } else {
+          promptText += `\n(구현할 하위 로직이 없습니다.)\n`;
+        }
+      } else if (note.noteType === 'Logic') {
+        promptText += `\n의사결정 규칙:\n${note.businessRules || '없음'}\n`;
+        promptText += `\n제약 사항:\n${note.constraints || '없음'}\n`;
+        promptText += `\n데이터 입출력:\n${note.ioMapping || '없음'}\n`;
+        promptText += `\n예외 처리:\n${note.edgeCases || '없음'}\n`;
+      }
+      
+      await navigator.clipboard.writeText(promptText);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy AI prompt", error);
+      alert("프롬프트 복사에 실패했습니다.");
     }
   };
 
@@ -461,6 +570,21 @@ export const NoteEditor = ({ noteId, projectId, onSaved, onDeleted }: { noteId: 
               )}
               <span>AI Format</span>
             </button>
+            {['Domain', 'Module', 'Logic'].includes(note.noteType || '') && (
+              <button
+                onClick={handleCopyAIPrompt}
+                disabled={isCopied || noteId === 'new'}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 border border-emerald-500/20 disabled:opacity-50 flex-1 sm:flex-none"
+                title="AI 구현 프롬프트 복사"
+              >
+                {isCopied ? (
+                  <CheckCircle2 size={12} />
+                ) : (
+                  <Copy size={12} />
+                )}
+                <span>{isCopied ? 'Copied!' : 'AI Prompt'}</span>
+              </button>
+            )}
             <button 
               onClick={() => setIsPreview(!isPreview)}
               className={`flex items-center justify-center gap-2 px-3 py-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 border flex-1 sm:flex-none ${
@@ -649,12 +773,14 @@ export const NoteEditor = ({ noteId, projectId, onSaved, onDeleted }: { noteId: 
           </div>
 
           {/* Strategy Section (2. 가치 제안 / 전략적 가치) */}
-          {(note.noteType === 'Domain' || note.noteType === 'Module') && (
+          {['Domain', 'Module', 'Logic'].includes(note.noteType || '') && (
             <div className="bg-transparent sm:bg-muted/5 border-0 sm:border border-border/50 rounded-none sm:rounded-3xl p-0 sm:p-8 pl-4 sm:pl-8 space-y-3 sm:space-y-6 relative overflow-hidden group transition-all hover:bg-muted/10">
               <div className="absolute top-0 bottom-0 left-0 w-1 bg-primary opacity-40 group-hover:opacity-100 transition-all duration-300"></div>
               <h3 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2 sm:gap-3">
                 <Sparkles size={16} className="text-primary" />
-                {note.noteType === 'Domain' ? '2. 가치 제안 (Strategic Value)' : '2. 전략적 가치 (Strategic Pillars)'}
+                {note.noteType === 'Domain' ? '2. 가치 제안 (Strategic Value)' : 
+                 note.noteType === 'Module' ? '2. 전략적 가치 (Strategic Pillars)' : 
+                 '2. 가치 제안 (Strategic Value)'}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -787,13 +913,11 @@ export const NoteEditor = ({ noteId, projectId, onSaved, onDeleted }: { noteId: 
               {note.conflictDetails && (
                 <div className="mt-4 sm:mt-6 space-y-4">
                   <div className="bg-background/50 border border-border rounded-xl sm:rounded-2xl p-3 sm:p-4">
-                    <h4 className="text-xs sm:text-sm font-bold text-foreground mb-2 flex items-center gap-2">
+                    <h4 className="text-xs sm:text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                       <Sparkles size={14} className="text-primary" />
                       분석 요약
                     </h4>
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                      {getCleanSummary(note.conflictDetails.summary)}
-                    </p>
+                    <FormattedConflictSummary summary={note.conflictDetails.summary} />
                   </div>
 
                   <div className="space-y-3 sm:space-y-4">
@@ -882,10 +1006,10 @@ export const NoteEditor = ({ noteId, projectId, onSaved, onDeleted }: { noteId: 
 
           {note.noteType === 'Logic' && (
             <>
-              {renderField('2. 의사결정 규칙 (Business Rules)', 'businessRules', note.businessRules, '만약 ~라면 ~한다 식의 로직...', 'bg-blue-500')}
-              {renderField('3. 제약 조건 (Constraints)', 'constraints', note.constraints, '데이터 유효성, 보안 규칙...', 'bg-green-500')}
-              {renderField('4. 데이터 입출력 매핑 (I/O Mapping)', 'ioMapping', note.ioMapping, '입력값이 결과값으로 변하는 과정...', 'bg-purple-500')}
-              {renderField('5. 예외 처리 (Edge Cases)', 'edgeCases', note.edgeCases, '비정상 상황 대응 규칙...', 'bg-pink-500')}
+              {renderField('3. 의사결정 규칙 (Business Rules)', 'businessRules', note.businessRules, '만약 ~라면 ~한다 식의 로직...', 'bg-blue-500')}
+              {renderField('4. 제약 조건 (Constraints)', 'constraints', note.constraints, '데이터 유효성, 보안 규칙...', 'bg-green-500')}
+              {renderField('5. 데이터 입출력 매핑 (I/O Mapping)', 'ioMapping', note.ioMapping, '입력값이 결과값으로 변하는 과정...', 'bg-purple-500')}
+              {renderField('6. 예외 처리 (Edge Cases)', 'edgeCases', note.edgeCases, '비정상 상황 대응 규칙...', 'bg-pink-500')}
             </>
           )}
 

@@ -97,6 +97,7 @@
 @layer base {
   .markdown-body {
     @apply text-sm leading-relaxed text-foreground/80;
+    white-space: pre-wrap;
   }
   .markdown-body p {
     @apply mb-4;

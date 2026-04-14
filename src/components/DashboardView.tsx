@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Note, CostEstimate, PitchDeck, CompetitorAnalysis, ProactiveNudge, LensType, MindMap } from '../types';
-import { Layers, Blocks, Cpu, Code, AlertCircle, CheckCircle2, CircleDashed, Target, Loader2, X, Receipt, Cloud, Wrench, Zap, Presentation, FileText, Lightbulb, Users, Briefcase, Swords, Crosshair, ShieldAlert, Rocket, PlusCircle, Sparkles, MessageSquarePlus, ChevronRight, LayoutGrid, Map, Network, Check, Send } from 'lucide-react';
+import { Layers, Blocks, Cpu, Code, AlertCircle, CheckCircle2, CircleDashed, Target, Loader2, X, Receipt, Cloud, Wrench, Zap, Presentation, FileText, Lightbulb, Users, Briefcase, Swords, Crosshair, ShieldAlert, Rocket, PlusCircle, Sparkles, MessageSquarePlus, ChevronRight, LayoutGrid, Map, Network, Check, Send, Copy, Download } from 'lucide-react';
 import { ArchitectureRefinementModal } from './dashboard/ArchitectureRefinementModal';
 import { KeywordInputModal, SuggestedKeywordsModal } from './dashboard/GenerationModals';
 import { scopeMVP, estimateProjectCost, generatePitchDeck, analyzeCompetitor, generateInitialBlueprint, generateProactiveNudges, generateProactiveNudgesWithKeywords, addFeatureBlueprint, refineIdeaWithSparring, generateDetailedBlueprint, refineBlueprintDraft, generateKeywords, generateMindMap, refineMindMap, generateArchitectureInsights, generateCodeSkeleton } from '../services/gemini';
@@ -49,6 +49,77 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projectId, notes, 
   const [magicIdea, setMagicIdea] = useState('');
   const [isGeneratingMagic, setIsGeneratingMagic] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyProjectPrompt = async () => {
+    try {
+      const project = await dbManager.getProject(projectId);
+      const domainNotes = notes.filter(n => n.noteType === 'Domain' && n.status !== 'Done');
+      
+      let promptText = `당신은 이 프로젝트의 수석 개발자입니다. 다음 도메인 명세를 바탕으로 전체 시스템 구조를 파악하고 코드를 작성해야 합니다.\n`;
+      promptText += `기존 파일 구조를 고려하여 완성된 코드를 제공해 주세요.\n`;
+      promptText += `=========================================\n`;
+      
+      if (project) {
+        promptText += `[프로젝트 가치 제안 (Strategic Value)]\n`;
+        promptText += `- Pain Point: ${project.painPoint || '없음'}\n`;
+        promptText += `- Target: ${project.targetAudience || '없음'}\n`;
+        promptText += `- Solution: ${project.solutionPromise || '없음'}\n`;
+        promptText += `=========================================\n`;
+      }
+
+      promptText += `[프로젝트 도메인 목록]\n`;
+      
+      if (domainNotes.length > 0) {
+        domainNotes.forEach(domain => {
+          promptText += `\n[Domain : ${domain.title}]\n`;
+          promptText += `[${domain.title} 요약]:\n${domain.summary || '없음'}\n`;
+          promptText += `[${domain.title} Pain Point]:\n${domain.painPoint || '없음'}\n`;
+          promptText += `[${domain.title} Target]:\n${domain.targetAudience || '없음'}\n`;
+          promptText += `[${domain.title} Solution]:\n${domain.solutionPromise || '없음'}\n`;
+          promptText += `[${domain.title} Boundaries]:\n${domain.boundaries || '없음'}\n`;
+          promptText += `[${domain.title} KPIs]:\n${domain.kpis || '없음'}\n`;
+          promptText += `[${domain.title} Glossary]:\n${domain.glossary || '없음'}\n`;
+        });
+      } else {
+        promptText += `\n(구현할 도메인이 없습니다.)\n`;
+      }
+      
+      await navigator.clipboard.writeText(promptText);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy project AI prompt", error);
+      setErrorMessage("프롬프트 복사에 실패했습니다.");
+    }
+  };
+
+  const handleExportProject = async () => {
+    try {
+      const project = await dbManager.getProject(projectId);
+      if (!project) return;
+      
+      const exportData = {
+        version: "1.0",
+        project,
+        notes
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `project_${project.name || 'export'}_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export project", error);
+      setErrorMessage("프로젝트 내보내기에 실패했습니다.");
+    }
+  };
 
   const [showMindMapModal, setShowMindMapModal] = useState(false);
   const [isGeneratingMindMap, setIsGeneratingMindMap] = useState(false);
@@ -576,31 +647,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projectId, notes, 
           <h2 className="text-xl md:text-2xl font-black tracking-tight">Business Command Center</h2>
           <p className="text-muted-foreground text-xs md:text-sm mt-1">Strategic overview of your system architecture and implementation status.</p>
         </div>
-        <div className="flex gap-1 md:gap-2 bg-muted/50 p-1 rounded-xl border border-border overflow-x-auto hide-scrollbar">
+        <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar">
           <button 
-            onClick={() => setActiveView('bento')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'bento' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={handleExportProject}
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 border border-blue-500/20 whitespace-nowrap"
+            title="프로젝트 데이터 다운로드 (Export)"
           >
-            <LayoutGrid size={16} /> Executive
+            <Download size={14} />
+            <span>Export</span>
           </button>
           <button 
-            onClick={() => setActiveView('generator')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'generator' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={handleCopyProjectPrompt}
+            disabled={isCopied}
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 border border-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
+            title="프로젝트 전체 도메인 AI 프롬프트 복사"
           >
-            <Sparkles size={16} /> Generator
+            {isCopied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+            <span>{isCopied ? 'Copied!' : 'AI Prompt'}</span>
           </button>
-          <button 
-            onClick={() => setActiveView('galaxy')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'galaxy' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <Network size={16} /> Galaxy
-          </button>
-          <button 
-            onClick={() => setActiveView('blueprint')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'blueprint' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <Layers size={16} /> Blueprint
-          </button>
+          <div className="flex gap-1 md:gap-2 bg-muted/50 p-1 rounded-xl border border-border">
+            <button 
+              onClick={() => setActiveView('bento')}
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'bento' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <LayoutGrid size={16} /> Executive
+            </button>
+            <button 
+              onClick={() => setActiveView('generator')}
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'generator' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Sparkles size={16} /> Generator
+            </button>
+            <button 
+              onClick={() => setActiveView('galaxy')}
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'galaxy' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Network size={16} /> Galaxy
+            </button>
+            <button 
+              onClick={() => setActiveView('blueprint')}
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-all whitespace-nowrap ${activeView === 'blueprint' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Layers size={16} /> Blueprint
+            </button>
+          </div>
         </div>
       </div>
 
@@ -628,6 +718,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ projectId, notes, 
               projectId={projectId} 
               initialIdea={magicIdea}
               onComplete={() => {
+                onNotesChanged();
                 setActiveView('bento');
                 setMagicIdea('');
               }}
